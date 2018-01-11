@@ -20,12 +20,8 @@ console A (pre-transfer) will be identical to the movable.sed for console B
 inside the TADpole directory.
 2. Place the movable.sed and ctcert.bin into TADpole/resources/
 3. From the command prompt, inside TADpole execute:
-'''
-python TADpole.py <dsiware export> <dump or rebuild>
-'''
-=======
 ```
-python <dsiware export> <dump or rebuild>
+python TADpole.py <dsiware export> <dump or rebuild>
 ```
 Examples are in the provided .bat scripts
 
