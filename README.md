@@ -1,0 +1,43 @@
+# Requirements
+* Python 2.x [link](https://www.python.org/downloads)
+* Pycryptodomex -
+Install with:
+```
+pip install pycryptodomex
+```
+* Windows (Adapting this to Linux shouldn't be difficult at all though)
+* The movable.sed from the same console the dsiware was exported from.
+Many tools allow you to dump this, but you need elevated permissions.
+(Godmode9, FBI, Decrypt9, 3DS-Recovery-Tool, etc.)
+* A valid CTcert+privkey. It can be obtained from any cfw 3ds. They're found in any exported TAD's footer.bin + 0x35C, size 0x180. 
+Append the ctcert privkey found at otp_dec.bin + 0x26, size 0x1E to this file for total size 0x19E.
+
+Note: if you systransfer from console A to console B, the movable.sed from
+console A (pre-transfer) will be identical to the movable.sed for console B 
+(post-transfer).
+# Usage
+1. Place your dsiware export from Nintendo 3DS/ID0/ID1/Nintendo DSiWare/
+inside the TADpole directory.
+2. Place the movable.sed and ctcert.bin into TADpole/resources/
+3. From the command prompt, inside TADpole execute:
+<<<<<<< HEAD
+'''
+python TADpole.py <dsiware export> <dump or rebuild>
+'''
+=======
+```
+python <dsiware export> <dump or rebuild>
+```
+>>>>>>> 53e4d75b41f9e851408b559ec7e034cf19586e08
+Examples are in the provided .bat scripts
+
+The dumped dsiware export (TAD) sections will be in <TitleID_low> dir by default.
+You may edit them, but editing anything but srl.nds or public.sav is not recommended.
+Also, avoid changing the size of these two files. 
+You may also add srl.nds.inject or public.sav.inject and TADpole will overwrite
+the target upon rebuild. Using a tool like OSFmount is recommended for public.sav
+file injection, however.
+# Thanks
+* **yellows8** for [ctr-dsiwaretool](https://github.com/yellows8/ctr-dsiwaretool) and 3dbrew [documentation](https://www.3dbrew.org/wiki/DSiWare_Exports)
+* **d0k3** for inspiring the creation of this tool with this [commit](https://github.com/d0k3/GodMode9/commit/ec861a7bf7c162c605aea353c0b9cebe7fa80e71)
+
