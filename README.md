@@ -5,6 +5,7 @@ Install with:
 ```
 pip install pycryptodomex
 ```
+* Note: the release archive includes an exe if you don't want to install python2 or python in general
 * Windows (Adapting this to Linux shouldn't be difficult at all though)
 * The movable.sed from the same console the dsiware was exported from.
 Many tools allow you to dump this, but you need elevated permissions.
