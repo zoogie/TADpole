@@ -10,8 +10,9 @@ pip install pycryptodomex
 * The movable.sed from the same console the dsiware was exported from.
 Many tools allow you to dump this, but you need elevated permissions.
 (Godmode9, FBI, Decrypt9, 3DS-Recovery-Tool, etc.)
-* A valid CTcert+privkey. It can be obtained from any cfw 3ds. They're found in any exported TAD's footer.bin + 0x35C, size 0x180. 
-Append the ctcert privkey found at otp_dec.bin + 0x26, size 0x1E to this file for total size 0x19E.
+* A valid CTcert+privkey. It can be obtained from any cfw 3ds. You can dump this with two steps:
+1) Option Y in [seedstarter.3dsx](https://github.com/zoogie/seedminer/releases) will dump the ctcert.bin to sd root (minus privkey)
+2) [ctcertifier.firm](https://github.com/zoogie/seedminer_toolbox/tree/master/ctcertifier) will append the privkey to the same ctcert.bin on sd root
 
 Note: if you systransfer from console A to console B, the movable.sed from
 console A (pre-transfer) will be identical to the movable.sed for console B 
