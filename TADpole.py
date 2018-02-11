@@ -26,6 +26,9 @@ SAV_SIZE=0x0
 content_sizelist=[0]*11
 content_namelist=["tmd","srl.nds","2.bin","3.bin","4.bin","5.bin","6.bin","7.bin","8.bin","public.sav","banner.sav"]
 
+if (len(sys.argv) != 3):
+	print("Usage: python TADpole.py <dsiware export> <dump or rebuild (d or r)>\n")
+
 f=open(sys.argv[1],"rb+")
 tad=f.read()
 f.close()
@@ -190,7 +193,6 @@ def inject_binary(path):
 		g.close()
 		
 print("TADpole by zoogie")
-print("Usage: python TADpole.py <dsiware export> <dump or rebuild (d or r)>\n")
 
 wkdir=sys.argv[1].replace(".bin","/",1)
 if(wkdir.count('.')==0 and wkdir.count('/')==1):
