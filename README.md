@@ -1,6 +1,6 @@
 # Requirements
 * Windows (Adapting this to Linux shouldn't be difficult at all though)
-* Python 2.x [link](https://www.python.org/downloads)
+* [Python 2.x](https://www.python.org/downloads)
 * Pycryptodomex -
 Install with:
 ```
