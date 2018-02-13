@@ -1,46 +1,51 @@
 # Requirements
-* Windows (Adapting this to Linux shouldn't be difficult at all though)
-* [Python 2.x](https://www.python.org/downloads)
-* Pycryptodomex -
-Install with:
-```
-pip install pycryptodomex
-```
-* Note: the release archive includes an exe if you don't want to install python2 or python in general
-* The movable.sed from the same console the dsiware was exported from.
-Many tools allow you to dump this, but you need elevated permissions.
-(Godmode9, FBI, Decrypt9, 3DS-Recovery-Tool, etc.)
-* A valid CTcert+privkey. It can be obtained from any cfw 3ds. You can dump this with two steps:
-1) Option Y in [seedstarter.3dsx](https://github.com/zoogie/seedminer/releases) will dump the ctcert.bin to sd root (minus privkey)
-2) Run [ctcertifier.firm](https://github.com/zoogie/seedminer_toolbox/tree/master/ctcertifier) via a chainloader which will append the privkey to the same ctcert.bin on sd root 
+* Windows - adapting to Linux is possible
+* Python 2.x.x - [official download](https://www.python.org/downloads)
+* Pycryptodomex - install with `pip install pycryptodomex`
+* A DSiWare export from your target console - must be DSihax injectable (see [list of injectable games](https://3ds.hacks.guide/installing-boot9strap-(dsiware-game-injection-list)))
+* A `movable.sed` from your target console - see README in [latest seedminer release](https://github.com/zoogie/seedminer/releases/latest)
+* A valid `ctcert.bin` with private key attached from a CFW console - see [instructions below](#obtaining-ctcertbin-plus-private-key) for guidance
+* Sudokuhax injection files for TADpole - download appropriate set from [this link](https://github.com/YYoshi241/Sudokuhax-4-TADpole/releases/latest)
 
-Note: you can run ctcertifier.firm with [Luma3DS's chainloader](https://github.com/AuroraWright/Luma3DS/wiki/Optional-features#firm-payload-chainloader) by putting ctcertifier.firm in `luma/payloads/` on your SD card and holding Start as you turn on your 3DS
-
-Note: if you systransfer from console A to console B, the movable.sed from
-console A (pre-transfer) will be identical to the movable.sed for console B 
-(post-transfer).
 # Usage
-1. Place your dsiware export from Nintendo 3DS/ID0/ID1/Nintendo DSiWare/
-inside the TADpole directory.
-2. Place the movable.sed and ctcert.bin into TADpole/resources/
-3. From the command prompt, inside TADpole execute:
+1. Download and extract latest release of [TADpole](https://github.com/zoogie/3ds_dsiwarehax_installer/releases/latest)
+2. Copy the injectable DSiWare game from System Memory to your SD card via 3DS System Settings
+3. Copy the exported DSiWare game from your SD card (in `your-sd-card/Nintendo 3DS/ID0/ID1/Nintendo DSiWare/`) to the extracted TADpole folder on your PC. It might look like `4b4c4455.bin`, for example. The hex number will be different of course.
+4. Place `movable.sed` in `.../TADpole/resources/`
+5. Place `ctcert.bin` in `.../TADpole/resources/`
+6. Inside Command Prompt, navigate to the extracted TADpole folder:
 ```
-python TADpole.py <dsiware export> dump
+cd wherever-it-was-extracted/TADpole
 ```
+7. Inside Command Prompt, dump the exported DSiWare game with:
+```
+python TADpole.py (8-digit hex).bin dump
+```
+8. Place both sudokuhax injection files (`public.sav.inject` and `srl.nds.inject`) inside the generated game folder
+9. Inside Command Prompt, rebuild the modified game folder with:
+```
+python TADpole.py (8-digit hex).bin rebuild
+```
+10. Copy the built `.patched` file to the `.../Nintendo DSiWare/` folder in your SD card and replace the original DSiWare export with it by removing `.patched` from the filename
+11. Proceed with steps in [Section V of 3ds.guide](https://3ds.hacks.guide/installing-boot9strap-(dsiware-game-injection))
 
-The dumped dsiware export (TAD) sections will be in <TitleID_low> dir by default.
-You may edit them, but editing anything but srl.nds or public.sav is not recommended.
-Also, avoid changing the size of these two files. 
-You may also add srl.nds.inject or public.sav.inject and TADpole will overwrite
-the target upon rebuild. Using a tool like OSFmount is recommended for public.sav
-file injection, however.
+**Note: more detailed instructions with screenshots can be found [here](http://gbatemp.net/threads/seedminer-single-system-dsiware-injection.495685/page-41#post-7830489)**
 
-4. From the command prompt, inside TADpole execute:
-```
-python TADpole.py <dsiware export> rebuild
-```
+# Obtaining `ctcert.bin` plus private key
+**Warning: the following steps require access to a 3DS with Custom Firmware (an already hacked 3DS)**
+1. Install the `seedstarter.cia` found in the [seedminer release](https://github.com/zoogie/seedminer/releases/latest) section
+2. Place [`ctcertifier.firm`](https://github.com/zoogie/seedminer_toolbox/tree/master/ctcertifier) in `/luma/payloads/` of your SD card if you have [Luma3DS](https://github.com/AuroraWright/Luma3DS/wiki/Optional-features#firm-payload-chainloader) installed or else somewhere where you can execute it via a chainloader
+3. Turn on your 3DS and run `seedstarter.cia`
+4. Press `Y` to dump `ctcert.bin` (missing private key) to `sdmc:/seedstarter/ctcert.bin`
+5. Turn off your 3DS
+6. Run `ctcertifier.firm` by holding `Start` and turning the 3DS on when you have Luma3DS installed
+7. Copy `ctcert.bin` from `sdmc:/seedstarter/ctcert.bin` to your TADpole location, and put it in the `resources/` folder
+8. Done
 
-Note: Examples are in the provided .bat scripts
+# Additional Notes
+* If you perform a System Transfer from console A to console B, the `movable.sed` from console A (pre-transfer) will be identical to the `movable.sed` for console B (post-transfer).
+* Examples of how to run the python commands are provided in `.bat` scripts.
+* The release archives include an `.exe` if you want to avoid installing python2 or python in general.
 
 # Thanks
 * **yellows8** for [ctr-dsiwaretool](https://github.com/yellows8/ctr-dsiwaretool) and 3dbrew [documentation](https://www.3dbrew.org/wiki/DSiWare_Exports)
