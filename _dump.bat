@@ -1,2 +1,2 @@
-py -2 tadpole.py 4B344445.bin d
+py -2 tadpole.py %~nx1 d
 pause
