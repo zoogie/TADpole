@@ -101,6 +101,11 @@ def dump_section(data_offset, size, filename):
 
 def get_content_sizes():
 	f=open(DIR+"header.bin","rb")
+	temp=f.read(4)
+	if(b"\x33\x46\x44\x54" not in temp):
+		print("Error: decryption failed, this likely means an incorrect movable.sed")
+		f.close()
+		sys.exit(0)
 	f.seek(0x48)
 	temp=f.read(0x2C)
 	f.close()
@@ -119,9 +124,22 @@ def get_content_block(buff):
 	return result.digest()+''.join(chr(random.randint(0,255)) for _ in range(16))
 
 def sign_footer():
+	ret=0
 	print("-----------Handing off to ctr-dsiwaretool...\n")
-	os.system("resources\ctr-dsiwaretool.exe "+DIR+"footer.bin resources/ctcert.bin --write")
+	ret=os.system("resources\ctr-dsiwaretool.exe "+DIR+"footer.bin resources/ctcert.bin --write")
 	print("\n-----------Returning to TADpole...")
+	if  (ret==1):
+		print("Error: file handling issue with %sfooter.bin" % DIR)
+		sys.exit(0)
+	elif(ret==2):
+		print("Error: file handling issue with resources/ctcert.bin")
+		sys.exit(0)
+	elif(ret==3):
+		print("Error: resources/ctcert.bin is invalid")
+		sys.exit(0)
+	elif(ret!=0):
+		print("Error: unknown code "+str(ret))
+		sys.exit(0)
 	
 def fix_hashes_and_sizes():
 	sizes=[0]*11
@@ -140,6 +158,7 @@ def fix_hashes_and_sizes():
 			f.close()
 		else:
 			hashes[i] = int16bytes(0)
+
 			
 	f=open(DIR+"header.bin","rb+")
 	offset=0x48
@@ -193,6 +212,10 @@ def inject_binary(path):
 		g.close()
 		
 print("TADpole by zoogie")
+
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
 
 wkdir=sys.argv[1].replace(".bin","/",1)
 if(wkdir.count('.')==0 and wkdir.count('/')==1):
