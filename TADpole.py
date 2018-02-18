@@ -1,7 +1,9 @@
+from __future__ import print_function
 from Cryptodome.Hash import CMAC
 from Cryptodome.Cipher import AES
 import hashlib
 import os,sys,random
+from binascii import hexlify
 
 keyx=0x6FBB01F872CAF9C01834EEC04065EE53
 keyy=0x0 #get this from movable.sed - console unique
@@ -29,37 +31,48 @@ content_namelist=["tmd","srl.nds","2.bin","3.bin","4.bin","5.bin","6.bin","7.bin
 if (len(sys.argv) != 3):
 	print("Usage: python TADpole.py <dsiware export> <dump or rebuild (d or r)>\n")
 
-f=open(sys.argv[1],"rb+")
-tad=f.read()
-f.close()
-tad_sections=[""]*14
+with open(sys.argv[1],"rb+") as f:
+	tad=f.read()
+tad_sections=[b""]*14
+
+if sys.version_info[0] >= 3:
+	# Python 3
+	def bytechr(c):
+		return bytes([c])
+else:
+	# Python 2
+	bytechr = chr
 
 def get_keyy():
 	global keyy
-	f=open("resources/movable.sed","rb")
-	f.seek(0x110)
-	temp=f.read(0x10)
-	keyy=int(temp.encode('hex'), 16)
-	f.close()
-	
+	with open("resources/movable.sed","rb") as f:
+		f.seek(0x110)
+		temp=f.read(0x10)
+		keyy=int(hexlify(temp), 16)
+
 def int16bytes(n):
-	s=""
-	for i in range(16):
-		s=chr(n & 0xFF)+s
-		n=n>>8
-	return s
+	if sys.version_info[0] >= 3:
+		# Python 3
+		return n.to_bytes(16, 'big')
+	else:
+		# Python 2
+		s=b""
+		for i in range(16):
+			s=chr(n & 0xFF)+s
+			n=n>>8
+		return s
 	
 def int2bytes(n):
-	str=bytearray(4)
+	s=bytearray(4)
 	for i in range(4):
-		str[i]=n & 0xFF
+		s[i]=n & 0xFF
 		n=n>>8
-	return str
+	return s
 
 def bytes2int(s):
 	n=0
 	for i in range(4):
-		n+=ord(s[i])<<(i*8)
+		n+=ord(s[i:i+1])<<(i*8)
 	return n
 
 def add_128(a, b):
@@ -94,21 +107,18 @@ def dump_section(data_offset, size, filename):
 	iv=tad[data_offset+size+0x10:data_offset+size+0x20]
 	key=normalkey(keyx,keyy)
 	result=decrypt(tad[data_offset:data_offset+size],int16bytes(key),iv)
-	f=open(filename,"wb")
-	f.write(result)
-	f.close()
+	with open(filename,"wb") as f:
+		f.write(result)
 	print("%08X  %08X  %s" % (data_offset, size, filename))
 
 def get_content_sizes():
-	f=open(DIR+"header.bin","rb")
-	temp=f.read(4)
-	if(b"\x33\x46\x44\x54" not in temp):
-		print("Error: decryption failed, this likely means an incorrect movable.sed")
-		f.close()
-		sys.exit(0)
-	f.seek(0x48)
-	temp=f.read(0x2C)
-	f.close()
+	with open(DIR+"header.bin","rb") as f:
+		temp=f.read(4)
+		if(b"\x33\x46\x44\x54" not in temp):
+			print("Error: decryption failed, this likely means an incorrect movable.sed")
+			sys.exit(0)
+		f.seek(0x48)
+		temp=f.read(0x2C)
 	for i in range(11):
 		offset=i*4
 		content_sizelist[i]=bytes2int(temp[offset:offset+4])
@@ -121,12 +131,12 @@ def get_content_block(buff):
 	key = int16bytes(normalkey(cmac_keyx, keyy))
 	cipher = CMAC.new(key, ciphermod=AES)
 	result = cipher.update(hash)
-	return result.digest()+''.join(chr(random.randint(0,255)) for _ in range(16))
+	return result.digest() + b''.join(bytechr(random.randint(0,255)) for _ in range(16))
 
 def sign_footer():
 	ret=0
 	print("-----------Handing off to ctr-dsiwaretool...\n")
-	ret=os.system("resources\ctr-dsiwaretool.exe "+DIR+"footer.bin resources/ctcert.bin --write")
+	ret=os.system(r"resources\ctr-dsiwaretool.exe "+DIR+"footer.bin resources/ctcert.bin --write")
 	print("\n-----------Returning to TADpole...")
 	if  (ret==1):
 		print("Error: file handling issue with %sfooter.bin" % DIR)
@@ -140,7 +150,7 @@ def sign_footer():
 	elif(ret!=0):
 		print("Error: unknown code "+str(ret))
 		sys.exit(0)
-	
+
 def fix_hashes_and_sizes():
 	sizes=[0]*11
 	hashes=[""]*13
@@ -153,30 +163,26 @@ def fix_hashes_and_sizes():
 	sizes[0]=0xB34
 	for i in range(13):
 		if(os.path.exists(DIR+footer_namelist[i])):
-			f=open(DIR+footer_namelist[i],"rb")
-			hashes[i] = hashlib.sha256(f.read()).digest()
-			f.close()
+			with open(DIR+footer_namelist[i],"rb") as f:
+				hashes[i] = hashlib.sha256(f.read()).digest()
 		else:
 			hashes[i] = int16bytes(0)
-
 			
-	f=open(DIR+"header.bin","rb+")
-	offset=0x48
-	for i in range(11):
-		f.seek(offset)
-		f.write(int2bytes(sizes[i]))
-		offset+=4
-	f.close()
-	print("header.bin fixed")
+	with open(DIR+"header.bin","rb+") as f:
+		offset=0x48
+		for i in range(11):
+			f.seek(offset)
+			f.write(int2bytes(sizes[i]))
+			offset+=4
+		print("header.bin fixed")
 	
-	f=open(DIR+"footer.bin","rb+")
-	offset=0
-	for i in range(13):
-		f.seek(offset)
-		f.write(hashes[i])
-		offset+=0x20
-	f.close()
-	print("footer.bin fixed")
+	with open(DIR+"footer.bin","rb+") as f:
+		offset=0
+		for i in range(13):
+			f.seek(offset)
+			f.write(hashes[i])
+			offset+=0x20
+		print("footer.bin fixed")
 		
 def rebuild_tad():
 	global keyy
@@ -187,30 +193,25 @@ def rebuild_tad():
 	for i in range(len(full_namelist)):
 		if(os.path.exists(DIR+full_namelist[i])):
 			print("encrypting "+DIR+full_namelist[i])
-			f=open(DIR+full_namelist[i],"rb")
-			section=f.read()
-			f.close()
+			with open(DIR+full_namelist[i],"rb") as f:
+				section=f.read()
 			content_block=get_content_block(section)
 			tad_sections[i]=encrypt(section, int16bytes(key), content_block[0x10:])+content_block
-	f=open(sys.argv[1]+".patched","wb")
-	f.write(''.join(tad_sections))
-	f.close()
+	with open(sys.argv[1]+".patched","wb") as f:
+		f.write(b''.join(tad_sections))
 	print("Rebuilt to "+sys.argv[1]+".patched")
 	print("Done.")
 
 def inject_binary(path):
 	if(os.path.exists(path+".inject")):
 		print(path+".inject found, injecting to "+path+"...")
-		f=open(path,"rb+")
-		g=open(path+".inject","rb")
-		if(len(g.read()) > len(f.read())):
-			print("WARNING: injection binary size greater than target, import may fail")
-		f.seek(0)
-		g.seek(0)
-		f.write(g.read())
-		f.close()
-		g.close()
-		
+		with open(path,"rb+") as f, open(path+".inject","rb") as g:
+			if(len(g.read()) > len(f.read())):
+				print("WARNING: injection binary size greater than target, import may fail")
+			f.seek(0)
+			g.seek(0)
+			f.write(g.read())
+
 print("TADpole by zoogie")
 
 abspath = os.path.abspath(__file__)
