@@ -8,7 +8,7 @@
 * Sudokuhax injection files for TADpole - download appropriate set from [this link](https://github.com/YYoshi241/Sudokuhax-4-TADpole/releases/latest)
 
 # Usage
-1. Download and extract latest release of [TADpole](https://github.com/zoogie/3ds_dsiwarehax_installer/releases/latest)
+1. Download and extract latest release of [TADpole](https://github.com/zoogie/TADpole/releases/latest)
 2. Copy the injectable DSiWare game from System Memory to your SD card via 3DS System Settings
 3. Copy the exported DSiWare game from your SD card (in `your-sd-card/Nintendo 3DS/ID0/ID1/Nintendo DSiWare/`) to the extracted TADpole folder on your PC. It might look like `4b4c4455.bin`, for example. The hex number will be different of course.
 4. Place `movable.sed` in `.../TADpole/resources/`
