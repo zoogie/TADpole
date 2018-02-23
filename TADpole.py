@@ -46,6 +46,10 @@ else:
 def get_keyy():
 	global keyy
 	with open("resources/movable.sed","rb") as f:
+		if(len(f.read()) != 0x140):
+				print("Error: movable.sed is the wrong size - are you sure this is a movable.sed?")
+				sys.exit(0)
+		f.seek(0)
 		f.seek(0x110)
 		temp=f.read(0x10)
 		keyy=int(hexlify(temp), 16)
