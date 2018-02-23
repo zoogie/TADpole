@@ -18,14 +18,16 @@ NOTE: You can use [DSIHaxInjector](https://jenkins.nelthorya.net/job/DSIHaxInjec
 ```
 cd wherever-it-was-extracted/TADpole
 ```
-7. Inside Command Prompt, dump the exported DSiWare game with:
+7. Dump the exported DSiWare .bin by drag n dropping it on dump.bat.
+or, in the Command Prompt:
 ```
-python TADpole.py (8-digit hex).bin dump
+python TADpole.py (8-digit hex).bin d
 ```
 8. Place both sudokuhax injection files (`public.sav.inject` and `srl.nds.inject`) inside the generated game folder
-9. Inside Command Prompt, rebuild the modified game folder with:
+9. Rebuild the modified game folder by drag n dropping the DSiWare .bin on rebuild.bat.
+or, in the Command Prompt:
 ```
-python TADpole.py (8-digit hex).bin rebuild
+python TADpole.py (8-digit hex).bin r
 ```
 10. Copy the built `.patched` file to the `.../Nintendo DSiWare/` folder in your SD card and replace the original DSiWare export with it by removing `.patched` from the filename
 11. Proceed with steps in [Section V of 3ds.guide](https://3ds.hacks.guide/installing-boot9strap-(dsiware-game-injection))
