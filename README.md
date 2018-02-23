@@ -14,23 +14,19 @@ NOTE: You can use [DSIHaxInjector](https://jenkins.nelthorya.net/job/DSIHaxInjec
 3. Copy the exported DSiWare game from your SD card (in `your-sd-card/Nintendo 3DS/ID0/ID1/Nintendo DSiWare/`) to the extracted TADpole folder on your PC. It might look like `4b4c4455.bin`, for example. The hex number will be different of course.
 4. Place `movable.sed` in `.../TADpole/resources/`
 5. Place `ctcert.bin` in `.../TADpole/resources/`
-6. Inside Command Prompt, navigate to the extracted TADpole folder:
-```
-cd wherever-it-was-extracted/TADpole
-```
-7. Dump the exported DSiWare .bin by drag n dropping it on dump.bat.
-or, in the Command Prompt:
+6. Dump the exported DSiWare .bin by drag n dropping it on dump.bat.  
+Or, in the Command Prompt after navigating to the TADpole directory:
 ```
 python TADpole.py (8-digit hex).bin d
 ```
-8. Place both sudokuhax injection files (`public.sav.inject` and `srl.nds.inject`) inside the generated game folder
-9. Rebuild the modified game folder by drag n dropping the DSiWare .bin on rebuild.bat.
-or, in the Command Prompt:
+7. Place both sudokuhax injection files (`public.sav.inject` and `srl.nds.inject`) inside the generated game folder
+8. Rebuild the modified game folder by drag n dropping the DSiWare .bin on rebuild.bat.  
+Or, in the Command Prompt after navigating to the TADpole directory:
 ```
 python TADpole.py (8-digit hex).bin r
 ```
-10. Copy the built `.patched` file to the `.../Nintendo DSiWare/` folder in your SD card and replace the original DSiWare export with it by removing `.patched` from the filename
-11. Proceed with steps in [Section V of 3ds.guide](https://3ds.hacks.guide/installing-boot9strap-(dsiware-game-injection))
+9. Copy the built `.patched` file to the `.../Nintendo DSiWare/` folder in your SD card and replace the original DSiWare export with it by removing `.patched` from the filename
+10. Proceed with steps in [Section V of 3ds.guide](https://3ds.hacks.guide/installing-boot9strap-(dsiware-game-injection))
 
 **Note: more detailed instructions with screenshots can be found [here](http://gbatemp.net/threads/seedminer-single-system-dsiware-injection.495685/page-41#post-7830489)**
 
