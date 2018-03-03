@@ -1,8 +1,7 @@
 from __future__ import print_function
 from Cryptodome.Hash import CMAC
 from Cryptodome.Cipher import AES
-import hashlib
-import os,sys,random
+import os,sys,random,hashlib
 from binascii import hexlify
 
 keyx=0x6FBB01F872CAF9C01834EEC04065EE53
@@ -20,11 +19,6 @@ HEADER_SIZE=0xF0
 FOOTER=HEADER+HEADER_SIZE+BM
 FOOTER_SIZE=0x4E0
 TMD=FOOTER+FOOTER_SIZE+BM
-TMD_SIZE=0xB40  #actual tmd size is 0xB34, but padded to 0xB40 to align with aes-cbc(16B block). 0xB40 is what's hashed in footer.
-SRL=TMD+TMD_SIZE+BM
-SRL_SIZE=0x0    #from here on, we need to get info from the header
-SAV=0x0
-SAV_SIZE=0x0
 content_sizelist=[0]*11
 content_namelist=["tmd","srl.nds","2.bin","3.bin","4.bin","5.bin","6.bin","7.bin","8.bin","public.sav","banner.sav"]
 
@@ -89,14 +83,10 @@ def rol_128(n, shift):
 		n=shift_result | left_bit
 	return n
 
-#3ds aes engine - curtesy of rei's pastebin google doc, curtesy of plutoo from 32c3
-#F(KeyX, KeyY) = (((KeyX <<< 2) ^ KeyY) + 1FF9E9AAC5FE0408024591DC5D52768A) <<< 87
-#https://pastebin.com/ucqXGq6E
-#https://smealum.github.io/3ds/32c3/#/113
-def normalkey(x,y):
-	n=rol_128(x,2) ^ y
-	n=add_128(n,C)
-	n=rol_128(n,87)
+def normalkey(x,y):     	#3ds aes engine - curtesy of rei's pastebin google doc, curtesy of plutoo from 32c3
+	n=rol_128(x,2) ^ y  	#F(KeyX, KeyY) = (((KeyX <<< 2) ^ KeyY) + 1FF9E9AAC5FE0408024591DC5D52768A) <<< 87
+	n=add_128(n,C)      	#https://pastebin.com/ucqXGq6E
+	n=rol_128(n,87)     	#https://smealum.github.io/3ds/32c3/#/113
 	return n
 	
 def decrypt(message, key, iv):
@@ -126,8 +116,10 @@ def get_content_sizes():
 	for i in range(11):
 		offset=i*4
 		content_sizelist[i]=bytes2int(temp[offset:offset+4])
-		if(content_sizelist[i]==0xB34):
-			content_sizelist[i]=0xB40
+		if(i==0):
+			pad=16-(content_sizelist[i] % 16)
+			content_sizelist[i]+=pad
+			#this is padding the tmd section for aes-cbc blocks (16B block align)
 
 def get_content_block(buff):
 	global cmac_keyx
@@ -164,13 +156,14 @@ def fix_hashes_and_sizes():
 			sizes[i] = os.path.getsize(DIR+content_namelist[i])
 		else:
 			sizes[i] = 0
-	sizes[0]=0xB34
+	if(sizes[0]%16==0):
+		sizes[0]-=0xC
 	for i in range(13):
 		if(os.path.exists(DIR+footer_namelist[i])):
 			with open(DIR+footer_namelist[i],"rb") as f:
 				hashes[i] = hashlib.sha256(f.read()).digest()
 		else:
-			hashes[i] = int16bytes(0)
+			hashes[i] = b"\x00"*0x20
 			
 	with open(DIR+"header.bin","rb+") as f:
 		offset=0x48
@@ -216,8 +209,8 @@ def inject_binary(path):
 			g.seek(0)
 			f.write(g.read())
 
-print("TADpole by zoogie")
-
+print("|TADpole by zoogie|")
+print("|_______v1.4______|")
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
@@ -230,7 +223,6 @@ print("Using workdir: "+DIR)
 if(sys.argv[2]=="dump" or sys.argv[2]=="d"):
 	print("Dumping sections...")
 	print("Offset    Size      Filename")
-
 	if not os.path.exists(DIR):
 		os.makedirs(DIR)
 	get_keyy()
@@ -243,7 +235,6 @@ if(sys.argv[2]=="dump" or sys.argv[2]=="d"):
 		if(content_sizelist[i]):
 			dump_section(tad_offset, content_sizelist[i], DIR+content_namelist[i])
 			tad_offset+=(content_sizelist[i]+BM)
-	#get_cmac(DIR+"banner.bin")
 elif(sys.argv[2]=="rebuild" or sys.argv[2]=="r"):
 	print("Rebuilding export...")
 	get_keyy()
