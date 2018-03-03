@@ -1,5 +1,7 @@
 # Notice
 You can use [DSIHaxInjector](https://jenkins.nelthorya.net/job/DSIHaxInjector/build?delay=0sec) for seedminer instead of this program. This is a cloud based version of TADpole and it's easier to use because of its user-friendly web interface.
+
+There's also a Java version with a GUI which performs the same function, [Seedplanter](https://github.com/knight-ryu12/Seedplanter/releases). This currently only works with 64 bit Windows and requires Java 8 or higher.
 # Requirements
 * Windows - adapting to Linux is possible
 * Python 2.x.x or 3.x.x - [official download](https://www.python.org/downloads)
