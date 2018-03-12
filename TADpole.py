@@ -215,7 +215,7 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-wkdir=sys.argv[1].replace(".bin","/",1)
+wkdir=sys.argv[1].lower().replace(".bin","/",1)
 if(wkdir.count('.')==0 and wkdir.count('/')==1):
 	DIR=wkdir
 print("Using workdir: "+DIR)
