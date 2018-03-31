@@ -42,7 +42,7 @@ def get_keyy():
 	with open("resources/movable.sed","rb") as f:
 		if(len(f.read()) != 0x140):
 				print("Error: movable.sed is the wrong size - are you sure this is a movable.sed?")
-				sys.exit(0)
+				sys.exit(1)
 		f.seek(0)
 		f.seek(0x110)
 		temp=f.read(0x10)
@@ -72,7 +72,15 @@ def bytes2int(s):
 	for i in range(4):
 		n+=ord(s[i:i+1])<<(i*8)
 	return n
-
+	
+def endian(n, size):
+	new=0
+	for i in range(size):
+		new <<= 8
+		new |= (n & 0xFF)
+		n >>= 8
+	return new
+		
 def add_128(a, b):
 	return (a+b) & F128
 
@@ -105,12 +113,35 @@ def dump_section(data_offset, size, filename):
 		f.write(result)
 	print("%08X  %08X  %s" % (data_offset, size, filename))
 
+def check_keyy(keyy_offset):
+	global keyy
+	tempy=endian(keyy,16)
+	tempy=tempy+(keyy_offset<<64)
+	tempy=endian(tempy,16)
+	iv=tad[HEADER+HEADER_SIZE+0x10:HEADER+HEADER_SIZE+0x20]
+	key=normalkey(keyx, tempy)
+	result=decrypt(tad[HEADER:HEADER+HEADER_SIZE],int16bytes(key),iv)
+	if(b"\x33\x46\x44\x54" not in result[:4]):
+		print("wrong -- keyy offset: %d" % (keyy_offset))
+		return 1
+	keyy=tempy
+	print("correct! -- keyy offset: %d" % (keyy_offset))
+	return 0
+	#print("%08X  %08X  %s" % (data_offset, size, filename))
+	
+def fix_movable():
+	temp=b""
+	print("correcting movable.sed ...")
+	with open("resources/movable.sed","rb+") as f:
+		bak=f.read()
+		f.seek(0)
+		f.write(b"\x00"*0x110+int16bytes(keyy)+b"\x00"*0x20)
+	with open("resources/movable_bak.sed","wb") as f:
+		f.write(bak)
+	print("your original movable.sed has been overwritten and a new movable_bak.sed created with the old data")
+
 def get_content_sizes():
 	with open(DIR+"header.bin","rb") as f:
-		temp=f.read(4)
-		if(b"\x33\x46\x44\x54" not in temp):
-			print("Error: decryption failed, this likely means an incorrect movable.sed")
-			sys.exit(0)
 		f.seek(0x48)
 		temp=f.read(0x2C)
 	for i in range(11):
@@ -136,16 +167,16 @@ def sign_footer():
 	print("\n-----------Returning to TADpole...")
 	if  (ret==1):
 		print("Error: file handling issue with %sfooter.bin" % DIR)
-		sys.exit(0)
+		sys.exit(1)
 	elif(ret==2):
 		print("Error: file handling issue with resources/ctcert.bin")
-		sys.exit(0)
+		sys.exit(1)
 	elif(ret==3):
 		print("Error: resources/ctcert.bin is invalid")
-		sys.exit(0)
+		sys.exit(1)
 	elif(ret!=0):
 		print("Error: unknown code "+str(ret))
-		sys.exit(0)
+		sys.exit(1)
 
 def fix_hashes_and_sizes():
 	sizes=[0]*11
@@ -215,17 +246,40 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-wkdir=sys.argv[1].lower().replace(".bin","/",1)
+wkdir=sys.argv[1].upper().replace(".BIN","/",1)
 if(wkdir.count('.')==0 and wkdir.count('/')==1):
 	DIR=wkdir
 print("Using workdir: "+DIR)
 
 if(sys.argv[2]=="dump" or sys.argv[2]=="d"):
-	print("Dumping sections...")
-	print("Offset    Size      Filename")
 	if not os.path.exists(DIR):
 		os.makedirs(DIR)
 	get_keyy()
+	print("checking keyy...")
+	if(check_keyy(0)):
+		print("Initial keyy failed to decrypt dsiware, trying adjacent keyys...")
+		decrypted=0
+		dec_error_msg=\
+		"\nWARNING!!!: Your input movable.sed keyy was wrong, but a nearby keyy worked!"\
+		"\nWARNING!!!: This means either you brute forced the wrong id0 or decrypted a dsiware.bin from the wrong id0"\
+		"\nWARNING!!!: The former will probably work while the latter will likely fail to import to the 3ds."
+		for i in range(1,21):
+			if(check_keyy(i)==0):
+				print(dec_error_msg)
+				decrypted=1
+				break
+			elif(check_keyy(-i)==0):
+				print(dec_error_msg)
+				decrypted=1
+				break
+		if(decrypted==0):	
+			print("Error: decryption failed - movable.sed keyy is wrong!")
+			sys.exit(1)
+		else:
+			fix_movable()
+
+	print("\nDumping sections...")
+	print("Offset    Size      Filename")
 	dump_section(BANNER, BANNER_SIZE, DIR+"banner.bin")
 	dump_section(HEADER, HEADER_SIZE, DIR+"header.bin")
 	dump_section(FOOTER, FOOTER_SIZE, DIR+"footer.bin")
