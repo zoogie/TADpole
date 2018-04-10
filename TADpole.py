@@ -40,7 +40,8 @@ else:
 def get_keyy():
 	global keyy
 	with open("resources/movable.sed","rb") as f:
-		if(len(f.read()) != 0x140):
+		msedlen=len(f.read())
+		if(msedlen != 0x140 and msedlen != 0x120):
 				print("Error: movable.sed is the wrong size - are you sure this is a movable.sed?")
 				sys.exit(1)
 		f.seek(0)
@@ -50,11 +51,9 @@ def get_keyy():
 
 def int16bytes(n):
 	if sys.version_info[0] >= 3:
-		# Python 3
-		return n.to_bytes(16, 'big')
+		return n.to_bytes(16, 'big')  # Python 3
 	else:
-		# Python 2
-		s=b""
+		s=b"" 						  # Python 2
 		for i in range(16):
 			s=chr(n & 0xFF)+s
 			n=n>>8
@@ -241,7 +240,7 @@ def inject_binary(path):
 			f.write(g.read())
 
 print("|TADpole by zoogie|")
-print("|_______v1.4______|")
+print("|_______v1.5______|")
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
