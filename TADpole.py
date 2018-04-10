@@ -150,7 +150,7 @@ def fix_movable():
 		f.write(b"\x00"*0x110+int16bytes(keyy)+b"\x00"*0x20)
 	with open("resources/movable_bak.sed","wb") as f:
 		f.write(bak)
-	print("your original movable.sed has been overwritten and a new movable_bak.sed created with the old data")
+	print("your original movable.sed has been overwritten and a new movable_bak.sed created with the old data\n")
 
 def get_content_sizes():
 	with open(DIR+"header.bin","rb") as f:
@@ -176,10 +176,12 @@ def sign_footer():
 	ret=0
 	print("-----------Handing off to ctr-dsiwaretool...\n")
 	if(sys.platform=="win32"):
-		print("Windows selected")
+		print("Windows ctr-dsiwaretool selected")
+		sys.stdout.flush() 
 		ret=os.system("resources\ctr-dsiwaretool.exe "+DIR+"footer.bin resources/ctcert.bin --write")
 	else:
-		print("Linux selected")
+		print("Linux ctr-dsiwaretool selected")
+		sys.stdout.flush()  #fix out-of-order text output on unix platforms (ctr-dsiwaretool before before python)
 		ret=os.system("resources/ctr-dsiwaretool "+DIR+"footer.bin resources/ctcert.bin --write")
 	print("\n-----------Returning to TADpole...")
 	if  (ret==1):
@@ -295,7 +297,7 @@ if(sys.argv[2]=="dump" or sys.argv[2]=="d"):
 		else:
 			fix_movable()
 
-	print("\nDumping sections...")
+	print("Dumping sections...")
 	print("Offset    Size      Filename")
 	dump_section(BANNER, BANNER_SIZE, DIR+"banner.bin")
 	dump_section(HEADER, HEADER_SIZE, DIR+"header.bin")
