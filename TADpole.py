@@ -27,6 +27,10 @@ if (len(sys.argv) != 3):
 
 with open(sys.argv[1],"rb+") as f:
 	tad=f.read()
+	if(len(tad)<0x20000):
+		print("Error: input dsiware %s is way too small, is this really a dsiware.bin?" % sys.argv[1])
+		sys.exit(1)
+
 tad_sections=[b""]*14
 
 if sys.version_info[0] >= 3:
@@ -39,15 +43,24 @@ else:
 
 def get_keyy():
 	global keyy
+	realseed=0
 	with open("resources/movable.sed","rb") as f:
 		msedlen=len(f.read())
 		if(msedlen != 0x140 and msedlen != 0x120):
-				print("Error: movable.sed is the wrong size - are you sure this is a movable.sed?")
-				sys.exit(1)
+			print("Error: movable.sed is the wrong size - are you sure this is a movable.sed?")
+			sys.exit(1)
 		f.seek(0)
+		if(f.read(4)==b"SEED"):
+			realseed=1
+			f.seek(0)
 		f.seek(0x110)
 		temp=f.read(0x10)
 		keyy=int(hexlify(temp), 16)
+	if(realseed):
+		print("Real movable.sed detected, cleaning non-keyy contents for safety")
+		print("DO NOT import this to a real 3DS!")
+		with open("resources/movable.sed","wb") as f:
+			f.write((b"\x00"*0x110)+temp+(b"\x00"*0x20))
 
 def int16bytes(n):
 	if sys.version_info[0] >= 3:
@@ -162,7 +175,12 @@ def get_content_block(buff):
 def sign_footer():
 	ret=0
 	print("-----------Handing off to ctr-dsiwaretool...\n")
-	ret=os.system(r"resources\ctr-dsiwaretool.exe "+DIR+"footer.bin resources/ctcert.bin --write")
+	if(sys.platform=="win32"):
+		print("Windows selected")
+		ret=os.system("resources\ctr-dsiwaretool.exe "+DIR+"footer.bin resources/ctcert.bin --write")
+	else:
+		print("Linux selected")
+		ret=os.system("resources/ctr-dsiwaretool "+DIR+"footer.bin resources/ctcert.bin --write")
 	print("\n-----------Returning to TADpole...")
 	if  (ret==1):
 		print("Error: file handling issue with %sfooter.bin" % DIR)
