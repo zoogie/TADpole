@@ -221,6 +221,8 @@ def fix_hashes_and_sizes():
 			f.seek(offset)
 			f.write(int2bytes(sizes[i]))
 			offset+=4
+		f.seek(0)
+		hashes[1] = hashlib.sha256(f.read()).digest() #we need to recalulate header hash in case there's a size change in any section. sneaky bug.
 		print("header.bin fixed")
 	
 	with open(DIR+"footer.bin","rb+") as f:
