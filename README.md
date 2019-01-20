@@ -9,9 +9,9 @@ A program that allows you to dump the contents of a 3ds dsiware export, modify t
 Basic Command Line usage is:
 ```
 Dump
-python TADpole.py (8-digit hex).bin d
+TADpole (8-digit hex).bin d
 Rebuild
-python TADpole.py (8-digit hex).bin r
+TADpole (8-digit hex).bin r
 ```
 
 # Additional Notes
