@@ -1,2 +1,2 @@
-py -2 tadpole.py %~nx1 r
+tadpole.exe %~nx1 r
 pause
