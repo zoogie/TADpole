@@ -69,14 +69,14 @@ LDFLAGS	=	-g
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
 #---------------------------------------------------------------------------------
-LIBS	:= 	-lcrypto
+LIBS	:= 	
  
  
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	C:\Users\Snake-DellPC\Desktop\HAX\seedminer\stage3\CPU_Conventional\openssl
+LIBDIRS	:=	
  
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional

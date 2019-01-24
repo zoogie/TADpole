@@ -353,7 +353,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	
-	mkdir(dname);
+	mkdir(dname, 0777);
 	
 	printf("|TADpole by zoogie|\n");
 	printf("|_______v2.0______|\n");
