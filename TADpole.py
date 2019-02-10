@@ -79,6 +79,13 @@ def int2bytes(n):
 		n=n>>8
 	return s
 
+def int2bytes64(n):
+	s=bytearray(8)
+	for i in range(8):
+		s[i]=n & 0xFF
+		n=n>>8
+	return s
+
 def bytes2int(s):
 	n=0
 	for i in range(4):
@@ -232,9 +239,11 @@ def fix_hashes_and_sizes():
 			f.write(hashes[i])
 			offset+=0x20
 		print("footer.bin fixed")
-		
-def rebuild_tad():
+
+def build_tad(newname,TID):
 	global keyy
+	fix_hashes_and_sizes()
+	sign_footer()
 	full_namelist=["banner.bin","header.bin","footer.bin"]+content_namelist
 	section=""
 	content_block=""
@@ -243,25 +252,20 @@ def rebuild_tad():
 		if(os.path.exists(DIR+full_namelist[i])):
 			print("encrypting "+DIR+full_namelist[i])
 			with open(DIR+full_namelist[i],"rb") as f:
+				if(full_namelist[i]=="header.bin"):
+					f.seek(0x38)
+					f.write(int2bytes64(TID))
+					print("TID modified to "+ str(TID))	
+					f.seek(0)
 				section=f.read()
 			content_block=get_content_block(section)
 			tad_sections[i]=encrypt(section, int16bytes(key), content_block[0x10:])+content_block
-	with open(sys.argv[1]+".patched","wb") as f:
+	with open(newname+".bin","wb") as f:
 		f.write(b''.join(tad_sections))
-	print("Rebuilt to "+sys.argv[1]+".patched")
-	print("Done.")
-
-def inject_binary(path):
-	if(os.path.exists(path+".inject")):
-		print(path+".inject found, injecting to "+path+"...")
-		with open(path,"rb+") as f, open(path+".inject","rb") as g:
-			if(len(g.read()) > len(f.read())):
-				print("WARNING: injection binary size greater than target, import may fail")
-			f.seek(0)
-			g.seek(0)
-			f.write(g.read())
+	print("Built "+newname+".bin")
 
 print("|TADpole by zoogie|")
+print("|TWLFix Mod       |")
 print("|_______v1.5______|")
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -271,52 +275,46 @@ wkdir=sys.argv[1].upper().replace(".BIN","/",1)
 if(wkdir.count('.')==0 and wkdir.count('/')==1):
 	DIR=wkdir
 print("Using workdir: "+DIR)
+if not os.path.exists(DIR):
+	os.makedirs(DIR)
+get_keyy()
+print("checking keyy...")
+if(check_keyy(0)):
+	print("Initial keyy failed to decrypt dsiware, trying adjacent keyys...")
+	decrypted=0
+	dec_error_msg=\
+	"\nWARNING!!!: Your input movable.sed keyy was wrong, but a nearby keyy worked!"\
+	"\nWARNING!!!: This means either you brute forced the wrong id0 or decrypted a dsiware.bin from the wrong id0"\
+	"\nWARNING!!!: The former will probably work while the latter will likely fail to import to the 3ds."
+	for i in range(1,21):
+		if(check_keyy(i)==0):
+			print(dec_error_msg)
+			decrypted=1
+			break
+		elif(check_keyy(-i)==0):
+			print(dec_error_msg)
+			decrypted=1
+			break
+	if(decrypted==0):	
+		print("Error: decryption failed - movable.sed keyy is wrong!")
+		sys.exit(1)
+	else:
+		fix_movable()
 
-if(sys.argv[2]=="dump" or sys.argv[2]=="d"):
-	if not os.path.exists(DIR):
-		os.makedirs(DIR)
-	get_keyy()
-	print("checking keyy...")
-	if(check_keyy(0)):
-		print("Initial keyy failed to decrypt dsiware, trying adjacent keyys...")
-		decrypted=0
-		dec_error_msg=\
-		"\nWARNING!!!: Your input movable.sed keyy was wrong, but a nearby keyy worked!"\
-		"\nWARNING!!!: This means either you brute forced the wrong id0 or decrypted a dsiware.bin from the wrong id0"\
-		"\nWARNING!!!: The former will probably work while the latter will likely fail to import to the 3ds."
-		for i in range(1,21):
-			if(check_keyy(i)==0):
-				print(dec_error_msg)
-				decrypted=1
-				break
-			elif(check_keyy(-i)==0):
-				print(dec_error_msg)
-				decrypted=1
-				break
-		if(decrypted==0):	
-			print("Error: decryption failed - movable.sed keyy is wrong!")
-			sys.exit(1)
-		else:
-			fix_movable()
+print("Dumping sections...")
+print("Offset    Size      Filename")
+dump_section(BANNER, BANNER_SIZE, DIR+"banner.bin")
+dump_section(HEADER, HEADER_SIZE, DIR+"header.bin")
+dump_section(FOOTER, FOOTER_SIZE, DIR+"footer.bin")
+get_content_sizes()
+tad_offset=TMD
+for i in range(11):
+	if(content_sizelist[i]):
+		dump_section(tad_offset, content_sizelist[i], DIR+content_namelist[i])
+		tad_offset+=(content_sizelist[i]+BM)
 
-	print("Dumping sections...")
-	print("Offset    Size      Filename")
-	dump_section(BANNER, BANNER_SIZE, DIR+"banner.bin")
-	dump_section(HEADER, HEADER_SIZE, DIR+"header.bin")
-	dump_section(FOOTER, FOOTER_SIZE, DIR+"footer.bin")
-	get_content_sizes()
-	tad_offset=TMD
-	for i in range(11):
-		if(content_sizelist[i]):
-			dump_section(tad_offset, content_sizelist[i], DIR+content_namelist[i])
-			tad_offset+=(content_sizelist[i]+BM)
-elif(sys.argv[2]=="rebuild" or sys.argv[2]=="r"):
-	print("Rebuilding export...")
-	get_keyy()
-	inject_binary(DIR+"srl.nds")
-	inject_binary(DIR+"public.sav")
-	fix_hashes_and_sizes()
-	sign_footer()
-	rebuild_tad()
-else:
-	print("ERROR: please recheck Usage above")
+build_tad("20000102",0x0004013820000102)# TWL Firm New
+build_tad("00000102",0x0004013800000102)# TWL Firm OLD
+build_tad("484E4841",0x0004800f484e4841)# Whitelist
+build_tad("484E4C41",0x0004800f484e4c41) # Version data
+

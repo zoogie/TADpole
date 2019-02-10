@@ -115,8 +115,8 @@ void dumpTad(char *filename, char *dname) {
 		error("Provided movable.sed is not 320 or 288 bytes of size","", true);
 	}
 	
-	printf("Dumping msed_data.bin\n");
-	dumpMsedData(movable);
+	//printf("Dumping msed_data.bin\n");
+	//dumpMsedData(movable);
 
 	printf("Scrambling keys\n");
 	keyScrambler((movable + 0x110), false, normalKey);
@@ -184,9 +184,11 @@ void dumpTad(char *filename, char *dname) {
 	free(wbuff);
 	free(movable);
 	printf("Done!\n");
+	chdir("..");
 }
 
-void rebuildTad(char *filename, char *dname) {
+
+void buildModifiedTad(char *filename, char *dname, uint64_t uTID) {
 	u8 *dsiware, *ctcert, *banner, *header, *footer, *movable;
 	u32 ctcert_size, header_size, footer_size, movable_size, banner_size;
 	u8 banner_hash[0x20]={0}, header_hash[0x20] = {0};
@@ -218,6 +220,12 @@ void rebuildTad(char *filename, char *dname) {
     printf("Reading %s/header.bin\n", dname);
 	header = readAllBytes("header.bin", header_size);
 	
+	for (int offset=0x38;offset<0x40;++offset) {
+		header[offset] = uTID&0xFF;
+		uTID = uTID >> 8;
+		//printf("header byte at offset %d is %x",offset,(uint8_t)uTID);
+	}
+	
 	printf("Reading %s/footer.bin\n", dname);
 	footer = readAllBytes("footer.bin", footer_size);
 	
@@ -234,10 +242,7 @@ void rebuildTad(char *filename, char *dname) {
 	printf("Getting content section sizes and hashes\n");
 	for(int i=0;i<11;i++){
 		if( access( content_namelist[i], F_OK ) != -1 ) {
-			if      (i==1 && access( "srl.nds.inject", F_OK ) != -1 )    contents[i] = readAllBytes("srl.nds.inject", content_size[i]);
-			else if (i==9 && access( "public.sav.inject", F_OK ) != -1 ) contents[i] = readAllBytes("public.sav.inject", content_size[i]);
-			else                                                         contents[i] = readAllBytes(content_namelist[i], content_size[i]);
-			
+			contents[i] = readAllBytes(content_namelist[i], content_size[i]);
 			checked_size+=(content_size[i]+0x20);
 			calculateSha256(contents[i],content_size[i], content_hash[i]);
 		}
@@ -289,9 +294,9 @@ void rebuildTad(char *filename, char *dname) {
 		}
 	}
 	
-	snprintf(outname, 32, "../%s.bin.patched", dname);
+	snprintf(outname, 32, "../%s.bin", filename);
 
-	printf("Writing %s.bin.patched\n", dname);
+	printf("Writing %s.bin\n", filename);
 	writeAllBytes(outname, dsiware, checked_size);
 	printf("Done!\n");
 	
@@ -303,12 +308,12 @@ void rebuildTad(char *filename, char *dname) {
 	free(movable);
 	free(ctcert);
 	printf("Done!\n");
+	chdir("..");
 }
 
 void usage(){
 	printf("TADpole <8-digitHex.bin(dsiware export)> <d|r>\n");
-	printf("ex. TADpole 484E4441.bin d  (this dumps the dsiware export)\n");
-	printf("ex. TADpole 484E4441.bin r  (this rebuilds the dsiware export)\n");
+	printf("ex. TADpole 484E4441.bin\n");
 }
 
 int ishex(char *in, u32 size){
@@ -335,15 +340,11 @@ int main(int argc, char* argv[]) {
 	char dname[64]={0};
 	int len=strlen(argv[1]);
 	
-	if(len<8 || argc!=3){
+	if(len<8 || argc!=2){
 		usage();
 		return 1;
 	}
 	
-	if(memcmp(argv[2], "d", 1) && memcmp(argv[2], "r", 1) && memcmp(argv[2], "D", 1) && memcmp(argv[2], "R", 1)){
-		usage();
-		return 1;
-	}
 	
 	memcpy(dname, argv[1], 8);
 	//printf("hex check %d %s\n", len,dname);
@@ -353,13 +354,18 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	
-	mkdir(dname, 0777);
-	
+	//mkdir(dname, 0777);
+	mkdir(dname);
+
 	printf("|TADpole by zoogie|\n");
+	printf("|TWLFix Mod       |\n");
 	printf("|_______v2.0______|\n");
 
-	if     (!memcmp(argv[2], "d", 1) || !memcmp(argv[2], "D", 1))    dumpTad(argv[1], dname); 
-	else if(!memcmp(argv[2], "r", 1) || !memcmp(argv[2], "R", 1)) rebuildTad(argv[1], dname); 
+	dumpTad(argv[1],dname);
+	buildModifiedTad("00000102",dname,0x0004013800000102);
+	buildModifiedTad("20000102",dname,0x0004013820000102);
+	buildModifiedTad("484e4841",dname,0x0004800f484e4841);
+	buildModifiedTad("484e4C41",dname,0x0004800f484e4C41);
 	printf("\nJob completed\n");
 	
 	return 0;
