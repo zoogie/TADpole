@@ -109,8 +109,8 @@ void dumpTad(char *filename, char *dname) {
 		error("Provided dsiware seems to be way too large!","", true);
 	}
 	
-	printf("Reading resources/movable.sed\n");
-	movable = readAllBytes("resources/movable.sed", movable_size);
+	printf("Reading movable.sed\n");
+	movable = readAllBytes("movable.sed", movable_size);
 	if (movable_size != 320 && movable_size != 288) {
 		error("Provided movable.sed is not 320 or 288 bytes of size","", true);
 	}
@@ -203,14 +203,14 @@ void buildModifiedTad(char *filename, char *dname, uint64_t uTID) {
 	char outname[64]={0};
 	memset(content_hash, 0, 11*0x20);
 	
-	printf("Reading resources/movable.sed\n");
-	movable = readAllBytes("resources/movable.sed", movable_size);
+	printf("Reading movable.sed\n");
+	movable = readAllBytes("movable.sed", movable_size);
 	if (movable_size != 320 && movable_size != 288) {
 		error("Provided movable.sed is not 320 or 288 bytes of size","", true);
 	}
 	
-	printf("Reading resources/ctcert.bin\n");
-	ctcert = readAllBytes("resources/ctcert.bin", ctcert_size);
+	printf("Reading ctcert.bin\n");
+	ctcert = readAllBytes("ctcert.bin", ctcert_size);
 	
 	chdir(dname);
 	
