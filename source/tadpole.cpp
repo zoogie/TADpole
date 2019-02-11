@@ -54,7 +54,7 @@ Result doSigning(u8 *ctcert_bin, footer_t *footer) {
 	ap_cert.sig.type = 0x05000100;// sig
 	
 	srand(time(0));
-	int check=rand();
+	//int check=rand();
 	//printf("%08X\n",check); 
 	int sanity=100;
 	bool randsig=false;
