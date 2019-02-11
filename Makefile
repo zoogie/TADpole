@@ -114,7 +114,7 @@ endif
 
 export OFILES	:=  \
 			$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
-export DATAFILES := $(BINFILES:.bin=.d)
+export DATAFILES := $(BINFILES:.bin=.b)
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
@@ -146,7 +146,7 @@ $(OUTPUT)	:	 $(DATAFILES) $(OFILES)
 	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
 
 #---------------------------------------------------------------------------------
-%.d	: %.bin
+%.b	: %.bin
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@cp -f $< $(DEPSDIR)/$@
