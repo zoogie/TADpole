@@ -13,6 +13,7 @@ export AS	:=	$(PREFIX)as
 export AR	:=	$(PREFIX)ar
 export OBJCOPY	:=	$(PREFIX)objcopy
 
+
 #---------------------------------------------------------------------------------
 %.a:
 #---------------------------------------------------------------------------------
@@ -48,10 +49,10 @@ export OBJCOPY	:=	$(PREFIX)objcopy
 # INCLUDES is a list of directories containing extra header files
 # MAXMOD_SOUNDBANK contains a directory of music and sound effect files
 #---------------------------------------------------------------------------------
-TARGET		:=	$(shell basename $(CURDIR))
+TARGET		:=	TadPole
 BUILD		:=	build
 SOURCES		:=	source
-#DATA		:=	data  
+DATA		:=	data  
 INCLUDES	:=	include
 
 #---------------------------------------------------------------------------------
@@ -61,10 +62,10 @@ INCLUDES	:=	include
 CFLAGS	:=	-Wall -O3
 
 CFLAGS	+=	$(INCLUDE)
-CXXFLAGS	:= $(CFLAGS)
+CXXFLAGS	:= $(CFLAGS) 
 
 ASFLAGS	:=	-g
-LDFLAGS	=	-g
+LDFLAGS	=	-g -static
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
@@ -91,7 +92,7 @@ export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
 
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
-
+export DATADIR  :=  $(CURDIR)/$(DATA)
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
@@ -111,9 +112,9 @@ else
 endif
 #---------------------------------------------------------------------------------
 
-export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
+export OFILES	:=  \
 			$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
- 
+export DATAFILES := $(BINFILES:.bin=.d)
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
@@ -139,17 +140,18 @@ else
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-$(OUTPUT)	:	$(OFILES)
+
+$(OUTPUT)	:	 $(DATAFILES) $(OFILES)
 	@echo linking $(notdir $@)
 	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
 
 #---------------------------------------------------------------------------------
-%.bin.o	:	%.bin
+%.d	: %.bin
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
-	$(bin2o)
+	@cp -f $< $(DEPSDIR)/$@
  
--include $(DEPSDIR)/*.d
+
  
 #---------------------------------------------------------------------------------------
 endif
