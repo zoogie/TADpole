@@ -2,7 +2,7 @@
     .global ctcert_size
     .section .rodata
 ctcert:
-    .incbin "ctcert.d"
+    .incbin "ctcert.b"
 1:
 ctcert_size:
     .int 1b - ctcert
