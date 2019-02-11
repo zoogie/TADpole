@@ -38,12 +38,16 @@ class TAD {
 	u8 footer[SIZE_FOOTER];
 	u32 dsiware_size;
 	~TAD() {
+		u32 content_size[11]={0};
+		memcpy(content_size, header+0x48, 11*4);
+		content_size[0]+=0xC; //tmd padding adjust
+		
+		//printf("Deallocating memory\n");
 		for(int i=0;i<11;i++){
+			if(content_size[i]){
 				free(contents[i]);
+			}
 		}
-		free(banner);
-		free(header);
-		free(footer);
 	}
 	TAD(char *filename) {
 		u8 *dsiware;
@@ -116,40 +120,43 @@ class TAD {
 		}
 		calculateSha256(header, SIZE_HEADER, header_hash);
 		
-		printf("Writing final footer hashes\n");
+		//printf("Writing final footer hashes\n");
 		
 		memcpy(footer+0x20, header_hash, 0x20);
-		printf("Signing the footer!\n");
+		//printf("Signing the footer!\n");
 		Result res = doSigning(ctcert, (footer_t*)footer);
 		if (res < 0) {
 			error("Signing failed","", true);
 		}
 		
-		printf("Copying all sections to output buffer\n");
+		//printf("Copying all sections to output buffer\n");
 		
 		dsiware=(u8*)calloc(1,dsiware_size);
 
-		printf("Writing banner\n"); placeSection((dsiware + OFFSET_BANNER), banner, SIZE_BANNER, normalKey, normalKey_CMAC);
-		printf("Writing header\n"); placeSection((dsiware + OFFSET_HEADER), header, SIZE_HEADER, normalKey, normalKey_CMAC);
-		printf("Writing TMD\n");    placeSection((dsiware + OFFSET_FOOTER), footer, SIZE_FOOTER, normalKey, normalKey_CMAC);
+		//printf("Writing banner\n"); 
+		placeSection((dsiware + OFFSET_BANNER), banner, SIZE_BANNER, normalKey, normalKey_CMAC);
+		//printf("Writing header\n"); 
+		placeSection((dsiware + OFFSET_HEADER), header, SIZE_HEADER, normalKey, normalKey_CMAC);
+		//printf("Writing TMD\n");    
+		placeSection((dsiware + OFFSET_FOOTER), footer, SIZE_FOOTER, normalKey, normalKey_CMAC);
 
 		memcpy(content_size, header+0x48, 11*4);
 		content_size[0]+=0xC;
 		for(int i=0;i<11;i++){
 			if(content_size[i]){
-				printf("Writing %s: %d bytes\n", content_namelist[i], content_size[i]);
+				//printf("Writing %s: %d bytes\n", content_namelist[i], content_size[i]);
 				placeSection((dsiware + content_off), contents[i], content_size[i], normalKey, normalKey_CMAC);
 				content_off+=(content_size[i]+0x20);
 			}
 		}
 
-		printf("Writing file %s\n", outname);
+		printf("Writing file %s\t", outname);
 		writeAllBytes(outname, dsiware, dsiware_size);
 		printf("Done!\n");
 		
-		printf("Cleaning up\n");
+		//printf("Cleaning up\n");
 		free(dsiware);
-		printf("Done!\n");
+		//printf("Done!\n");
 	}
 
 
@@ -214,19 +221,20 @@ u16 crc16(u8 *data, u32 N) //https://modbus.control.com/thread/1381836105#138185
 void fixcrc16(u16 *checksum, u8 *message, u32 len){
 	u16 original=*checksum;
 	u16 calculated=crc16(message, len);
-	printf("orig:%04X calc:%04X  ", original, calculated);
+	//printf("orig:%04X calc:%04X  ", original, calculated);
 	if(original != calculated){
 		*checksum=calculated;
 		printf("fixed\n");
 		return;
 	}
-	printf("good\n");
+	//printf("good\n");
 }
 
 
 void usage(){
-	printf("TADpole <8-digitHex.bin(dsiware export)> <d|r>\n");
+	printf("TWLFix input.bin [TargetTID]\n");
 	printf("ex. TADpole 484E4441.bin\n");
+	printf("ex. TADpole 484E4441.bin 0x0004013800001234\n");
 }
 
 int ishex(char *in, u32 size){
@@ -251,22 +259,32 @@ int ishex(char *in, u32 size){
 
 int main(int argc, char* argv[]) {
 
-	if(argc!=2){
+	if(argc<2){
 		usage();
 		return 1;
 	}
 
-	printf("|TADpole by zoogie|\n");
-	printf("|TWLFix Mod       |\n");
-	printf("|_______v2.0______|\n\n");
-
+	u64 uTargetTID=0;
+	if (argc > 2) {
+		char *pEnd;
+		uTargetTID = strtoull (argv[2], &pEnd, 16);
+	}
+	printf("\n");
+	printf("#####################\n");
+	printf("# TADpole by zoogie #\n");
+	printf("# TWLFix Mod        #\n");
+	printf("#        v2.0       #\n");
+	printf("#####################\n\n");
 	u32 ctcert_size=0;
-	printf("Reading ctcert.bin\n");
+	//printf("Reading ctcert.bin\n");
 	ctcert = readAllBytes("ctcert.bin", ctcert_size);
-	printf("ctcert %d\n",ctcert_size);
+	if (ctcert_size != 414 ) {
+		error("ctcert.bin size invalid.","",true);
+	}
+	//printf("ctcert %d\n",ctcert_size);
 	// === MOVABLE/KEY ===
 	u32 movable_size=0;
-	printf("Reading movable.sed\n");
+	//printf("Reading movable.sed\n");
 	u8 *movable = readAllBytes("movable.sed", movable_size);
 	if (movable_size != 320 && movable_size != 288) {
 		error("Provided movable.sed is not 320 or 288 bytes of size","", true);
@@ -277,13 +295,21 @@ int main(int argc, char* argv[]) {
 
 
 	TAD DSi(argv[1]);
-
-	DSi.dumpModifiedTad(0x0004013800000102);
-	DSi.dumpModifiedTad(0x0004013820000102);
-	DSi.dumpModifiedTad(0x0004800f484e4841);
-	DSi.dumpModifiedTad(0x0004800f484e4C41);
+	if (uTargetTID > 0) {
+		printf("Target ID: %016llx\n",uTargetTID);
+		DSi.dumpModifiedTad(uTargetTID);
+	}else{
+		printf("No Target ID provided, dumping 4 default.\n");
+		DSi.dumpModifiedTad(0x0004013800000102);
+		DSi.dumpModifiedTad(0x0004013820000102);
+		DSi.dumpModifiedTad(0x0004800f484e4841);
+		DSi.dumpModifiedTad(0x0004800f484e4C41);
+	}
 	printf("\nJob completed\n");
-
+	//printf("Cleaning up\n");
 	free(ctcert);
+	//printf("Program complete\n\n");
+	printf("Press Enter to exit...");
+	std::cin.ignore();
 	return 0;
 }
