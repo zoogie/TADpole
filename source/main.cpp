@@ -9,6 +9,143 @@
 #include "types.h"
 #include "hash_stash.h"
 
+#define CONTENT_MAX 11
+#define OFFSET_BANNER 0
+#define OFFSET_HEADER 0x4020
+#define OFFSET_FOOTER 0x4130
+#define OFFSET_TMD 0x4630
+#define SIZE_BANNER 0x4000
+#define SIZE_HEADER 0xF0
+#define SIZE_FOOTER 0x4E0
+
+const char *content_namelist[]={"tmd","srl.nds","2.bin","3.bin","4.bin","5.bin","6.bin","7.bin","8.bin","public.sav","banner.sav"};
+u8 *readAllBytes(const char *filename, u32 &filelen);
+void writeAllBytes(const char *filename, u8 *filedata, u32 filelen);
+void error(const char *errormsg, const char *filename, bool fatal);
+
+u8 normalKey[0x10]={0};
+u8 normalKey_CMAC[0x10]={0};
+
+u8 *ctcert;
+
+
+class TAD {
+
+	public:
+	u8 banner[SIZE_BANNER];
+	u8 header[SIZE_HEADER];
+	u8 *contents[CONTENT_MAX];
+	u8 footer[SIZE_FOOTER];
+	u32 dsiware_size;
+	TAD(char *filename) {
+		u8 *dsiware;
+		u32 content_size[11]={0};
+		u32 content_off=OFFSET_TMD;
+		u32 checked_size=0;
+		memset(header,0,SIZE_HEADER);
+		printf("Reading %s\n", filename);
+
+		dsiware = readAllBytes(filename, dsiware_size);
+		if (dsiware_size > 0x4000000) {
+			error("Provided dsiware seems to be way too large!\nsize is > 4MB","", true);
+		}
+		
+		getSection((dsiware + OFFSET_HEADER), SIZE_HEADER, normalKey, header);
+		
+		if (memcmp("3FDT", header, 4)) {
+			error("Decryption failed","", true);
+		}
+		
+		memcpy(content_size, header+0x48, 11*4);
+		content_size[0]+=0xC; //tmd padding adjust
+		
+		printf("Verifying input dsiware size\n");
+		for(int i=0;i<11;i++){
+			if(content_size[i]){
+				checked_size+=(content_size[i]+0x20);
+			}
+		}
+		checked_size+=OFFSET_TMD;
+		
+		
+		if(checked_size != dsiware_size){  
+			error("Input dsiware size does not agree with its header!","", true);
+		}
+		
+		getSection((dsiware + OFFSET_BANNER), SIZE_BANNER, normalKey, banner);
+		getSection((dsiware + OFFSET_FOOTER), SIZE_FOOTER, normalKey, footer);
+
+		
+		for(int i=0;i<11;i++){
+			if(content_size[i]){
+				contents[i]=(u8*)malloc(content_size[i]);
+				getSection((dsiware + content_off), content_size[i], normalKey, contents[i]);
+				content_off+=0x20;
+			}
+			content_off+=content_size[i];
+		}
+
+		printf("Done!\n");
+		
+		free(dsiware);
+
+	}
+
+	void dumpModifiedTad(uint64_t uTID) {
+		u8 *dsiware;
+		u8 header_hash[0x20] = {0};
+		u32 content_off=OFFSET_TMD;
+		u32 content_size[11]={0};
+		char outname[64]={0};
+
+		snprintf(outname, 32, "%08x.bin", (u32)(uTID & 0xFFFFFFFF));
+
+		for (int offset=0x38;offset<0x40;++offset) {
+			header[offset] = uTID&0xFF;
+			uTID = uTID >> 8;
+		}
+		calculateSha256(header, SIZE_HEADER, header_hash);
+		
+		printf("Writing final footer hashes\n");
+		
+		memcpy(footer+0x20, header_hash, 0x20);
+		printf("Signing the footer!\n");
+		Result res = doSigning(ctcert, (footer_t*)footer);
+		if (res < 0) {
+			error("Signing failed","", true);
+		}
+		
+		printf("Copying all sections to output buffer\n");
+		
+		dsiware=(u8*)malloc(dsiware_size);
+
+		printf("Writing banner\n"); placeSection((dsiware + OFFSET_BANNER), banner, SIZE_BANNER, normalKey, normalKey_CMAC);
+		printf("Writing header\n"); placeSection((dsiware + OFFSET_HEADER), header, SIZE_HEADER, normalKey, normalKey_CMAC);
+		printf("Writing TMD\n");    placeSection((dsiware + OFFSET_FOOTER), footer, SIZE_FOOTER, normalKey, normalKey_CMAC);
+
+		memcpy(content_size, header+0x48, 11*4);
+		content_size[0]+=0xC;
+		for(int i=0;i<11;i++){
+			if(content_size[i]){
+				printf("Writing %s: %d bytes\n", content_namelist[i], content_size[i]);
+				placeSection((dsiware + content_off), contents[i], content_size[i], normalKey, normalKey_CMAC);
+				content_off+=(content_size[i]+0x20);
+			}
+		}
+
+		printf("Writing file %s\n", outname);
+		writeAllBytes(outname, dsiware, dsiware_size);
+		printf("Done!\n");
+		
+		printf("Cleaning up\n");
+		free(dsiware);
+		printf("Done!\n");
+	}
+
+
+};
+
+
 void error(const char *errormsg, const char *filename, bool fatal) {
 	printf("%s:%s %s\nHit Enter to close\n", fatal ? "ERROR":"WARNING", errormsg, filename);
 	getchar();
@@ -39,20 +176,6 @@ void writeAllBytes(const char *filename, u8 *filedata, u32 filelen) {
 	FILE *fileptr = fopen(filename, "wb");
 	fwrite(filedata, 1, filelen, fileptr);
 	fclose(fileptr);
-}
-
-void dumpMsedData(u8 *msed){
-	u32 keyy[4]={0};
-	int mdata[3]={33,33,33};
-	memcpy(keyy, msed+0x110, 0x10);
-	mdata[0]=(keyy[0]&0xFFFFFF00) | 0x80;
-	keyy[3]&=0x7FFFFFFF;
-	
-	mdata[1]=(keyy[0]/5) - keyy[3];
-	if(keyy[1]==2) mdata[2]=3;
-	else if(keyy[1]==0) mdata[2]=2;
-	
-	writeAllBytes("msed_data.bin", (u8*)mdata, 12);
 }
 
 u16 crc16(u8 *data, u32 N) //https://modbus.control.com/thread/1381836105#1381859471
@@ -90,226 +213,6 @@ void fixcrc16(u16 *checksum, u8 *message, u32 len){
 	printf("good\n");
 }
 
-void dumpTad(char *filename, char *dname) {
-	u8 *dsiware, *wbuff, *contents, *banner, *header, *footer, *movable;
-	u32 dsiware_size, movable_size, banner_size=0x4000, header_size=0xF0, footer_size=0x4E0; //the 3ds currently uses the 11 content sections version of dsiware exports. this is all we should encounter.
-	u32 banner_off=0, header_off=0x4020, footer_off=0x4130, tmd_off=0x4630;  //0x4000+0x20+0xF0+0x20+0x4E0+0x20
-	u32 content_size[11]={0};
-	const char *content_namelist[]={"tmd","srl.nds","2.bin","3.bin","4.bin","5.bin","6.bin","7.bin","8.bin","public.sav","banner.sav"};
-	u32 content_off=tmd_off;
-	u32 checked_size=0;
-	//u8 header_hash[0x20] = {0}, srl_hash[0x20] = {0}, tmp_hash[0x20] = {0}, tmd_hash[0x20]={0}, banner_hash[0x20]={0};
-	u8 normalKey[0x10] = {0}, normalKey_CMAC[0x10] = {0};
-	header_t header_out;
-	memset(&header_out, 0, 0xF0);
-
-	printf("Reading %s\n", filename);
-	dsiware = readAllBytes(filename, dsiware_size);
-	if (dsiware_size > 0x4000000) {
-		error("Provided dsiware seems to be way too large!","", true);
-	}
-	
-	printf("Reading movable.sed\n");
-	movable = readAllBytes("movable.sed", movable_size);
-	if (movable_size != 320 && movable_size != 288) {
-		error("Provided movable.sed is not 320 or 288 bytes of size","", true);
-	}
-	
-	//printf("Dumping msed_data.bin\n");
-	//dumpMsedData(movable);
-
-	printf("Scrambling keys\n");
-	keyScrambler((movable + 0x110), false, normalKey);
-	keyScrambler((movable + 0x110), true, normalKey_CMAC);
-	
-	wbuff=(u8*)malloc(tmd_off);
-	
-	banner=wbuff;
-	header=wbuff+header_off;
-	footer=wbuff+footer_off;
-	
-	// === HEADER ===
-	printf("Decrypting header\n");
-	getSection((dsiware + header_off), header_size, normalKey, header);
-	
-	if (memcmp("3FDT", header, 4)) {
-		error("Decryption failed","", true);
-	}
-	
-	memcpy(content_size, header+0x48, 11*4);
-	content_size[0]+=0xC; //tmd padding adjust
-	
-	printf("Verifying input dsiware size\n");
-	for(int i=0;i<11;i++){
-		if(content_size[i]){
-			checked_size+=(content_size[i]+0x20);
-		}
-	}
-	checked_size+=tmd_off;
-	
-	
-	printf("checked %08X actual %08X\n",checked_size, dsiware_size);
-	if(checked_size != dsiware_size){  
-		error("Input dsiware size does not agree with its header!","", true);
-	}
-	
-	getSection((dsiware + banner_off), banner_size, normalKey, banner);
-	getSection((dsiware + footer_off), footer_size, normalKey, footer);
-
-	chdir(dname);
-	printf("Dumping %s/banner.bin\n", dname);
-	writeAllBytes("banner.bin", banner, banner_size);
-	printf("Dumping %s/header.bin\n", dname);
-	writeAllBytes("header.bin", header, header_size);
-	printf("Dumping %s/footer.bin\n", dname);
-	writeAllBytes("footer.bin", footer, footer_size);
-	
-	contents=(u8*)malloc(dsiware_size);
-	
-	for(int i=0;i<11;i++){
-		if(content_size[i]){
-			printf("Dumping %s/%s\n", dname, content_namelist[i]);
-			getSection((dsiware + content_off), content_size[i], normalKey, contents);
-			writeAllBytes(content_namelist[i], contents, content_size[i]);
-			content_off+=0x20;
-		}
-		content_off+=content_size[i];
-	}
-
-	printf("Done!\n");
-	
-	printf("Cleaning up\n");
-	free(contents);
-	free(dsiware);
-	free(wbuff);
-	free(movable);
-	printf("Done!\n");
-	chdir("..");
-}
-
-
-void buildModifiedTad(char *filename, char *dname, uint64_t uTID) {
-	u8 *dsiware, *ctcert, *banner, *header, *footer, *movable;
-	u32 ctcert_size, header_size, footer_size, movable_size, banner_size;
-	u8 banner_hash[0x20]={0}, header_hash[0x20] = {0};
-	u8 content_hash[11][0x20]={0};
-	u32 banner_off=0, header_off=0x4020, footer_off=0x4130, tmd_off=0x4630;  //0x4000+0x20+0xF0+0x20+0x4E0+0x20
-	u32 content_off=tmd_off;
-	u32 checked_size=tmd_off;
-	u32 content_size[11]={0};
-	const char *content_namelist[]={"tmd","srl.nds","2.bin","3.bin","4.bin","5.bin","6.bin","7.bin","8.bin","public.sav","banner.sav"};
-	u8 *contents[11];
-	u8 normalKey[0x10] = {0}, normalKey_CMAC[0x10] = {0};
-	char outname[64]={0};
-	memset(content_hash, 0, 11*0x20);
-	
-	printf("Reading movable.sed\n");
-	movable = readAllBytes("movable.sed", movable_size);
-	if (movable_size != 320 && movable_size != 288) {
-		error("Provided movable.sed is not 320 or 288 bytes of size","", true);
-	}
-	
-	printf("Reading ctcert.bin\n");
-	ctcert = readAllBytes("ctcert.bin", ctcert_size);
-	
-	chdir(dname);
-	
-	printf("Reading %s/banner.bin\n", dname);
-	banner = readAllBytes("banner.bin", banner_size);
-	
-    printf("Reading %s/header.bin\n", dname);
-	header = readAllBytes("header.bin", header_size);
-	
-	for (int offset=0x38;offset<0x40;++offset) {
-		header[offset] = uTID&0xFF;
-		uTID = uTID >> 8;
-		//printf("header byte at offset %d is %x",offset,(uint8_t)uTID);
-	}
-	
-	printf("Reading %s/footer.bin\n", dname);
-	footer = readAllBytes("footer.bin", footer_size);
-	
-	printf("Fixing banner crc16s\n");
-	fixcrc16((u16*)(banner+0x2), banner+0x20, 0x820);
-	fixcrc16((u16*)(banner+0x4), banner+0x20, 0x920);
-	fixcrc16((u16*)(banner+0x6), banner+0x20, 0xA20);
-	fixcrc16((u16*)(banner+0x8), banner+0x1240, 0x1180);
-	
-	printf("Scrambling keys\n");
-	keyScrambler((movable + 0x110), false, normalKey);
-	keyScrambler((movable + 0x110), true, normalKey_CMAC);
-		
-	printf("Getting content section sizes and hashes\n");
-	for(int i=0;i<11;i++){
-		if( access( content_namelist[i], F_OK ) != -1 ) {
-			contents[i] = readAllBytes(content_namelist[i], content_size[i]);
-			checked_size+=(content_size[i]+0x20);
-			calculateSha256(contents[i],content_size[i], content_hash[i]);
-		}
-	}
-	
-	if(*(u32*)(header+0x48+4) < content_size[1]){
-		*(u32*)(header+0x40)=(content_size[1]+0x20000)&0xFFFF8000;
-	}
-	
-	content_size[0]-=0xC;
-	memcpy(header+0x48, content_size, 11*4);
-	
-	printf("Getting banner and header hashes\n");
-	calculateSha256(banner, banner_size, banner_hash);
-	calculateSha256(header, header_size, header_hash);
-	
-	printf("Writing final footer hashes\n");
-	
-	memset(footer, 0, 13*0x20);
-	memcpy(footer, banner_hash, 0x20);
-	memcpy(footer+0x20, header_hash, 0x20);
-	
-	for(int i=0;i<11;i++){
-		if(content_size[i]){
-			memcpy(footer+0x40+(i*0x20), content_hash[i], 0x20);
-		}
-	}
-	
-	printf("Signing the footer!\n");
-	Result res = doSigning(ctcert, (footer_t*)footer);
-	if (res < 0) {
-		error("Signing failed","", true);
-	}
-	
-	printf("Copying all sections to output buffer\n");
-	
-	dsiware=(u8*)malloc(checked_size);
-	printf("Writing banner\n"); placeSection((dsiware + banner_off), banner, banner_size, normalKey, normalKey_CMAC);
-	printf("Writing header\n"); placeSection((dsiware + header_off), header, header_size, normalKey, normalKey_CMAC);
-	printf("Writing TMD\n");    placeSection((dsiware + footer_off), footer, footer_size, normalKey, normalKey_CMAC);
-	
-	content_size[0]+=0xC;
-	for(int i=0;i<11;i++){
-		if(content_size[i]){
-			printf("Writing %s\n", content_namelist[i]);
-			placeSection((dsiware + content_off), contents[i], content_size[i], normalKey, normalKey_CMAC);
-			content_off+=(content_size[i]+0x20);
-			free(contents[i]);
-		}
-	}
-	
-	snprintf(outname, 32, "../%s.bin", filename);
-
-	printf("Writing %s.bin\n", filename);
-	writeAllBytes(outname, dsiware, checked_size);
-	printf("Done!\n");
-	
-	printf("Cleaning up\n");
-	free(banner);
-	free(header);
-	free(footer);
-	free(dsiware);
-	free(movable);
-	free(ctcert);
-	printf("Done!\n");
-	chdir("..");
-}
 
 void usage(){
 	printf("TADpole <8-digitHex.bin(dsiware export)> <d|r>\n");
@@ -359,14 +262,30 @@ int main(int argc, char* argv[]) {
 
 	printf("|TADpole by zoogie|\n");
 	printf("|TWLFix Mod       |\n");
-	printf("|_______v2.0______|\n");
+	printf("|_______v2.0______|\n\n");
 
-	dumpTad(argv[1],dname);
-	buildModifiedTad("00000102",dname,0x0004013800000102);
-	buildModifiedTad("20000102",dname,0x0004013820000102);
-	buildModifiedTad("484e4841",dname,0x0004800f484e4841);
-	buildModifiedTad("484e4C41",dname,0x0004800f484e4C41);
+	u32 ctcert_size=0;
+	printf("Reading ctcert.bin\n");
+	ctcert = readAllBytes("ctcert.bin", ctcert_size);
+	printf("ctcert %d\n",ctcert_size);
+	// === MOVABLE/KEY ===
+	u32 movable_size=0;
+	printf("Reading movable.sed\n");
+	u8 *movable = readAllBytes("movable.sed", movable_size);
+	if (movable_size != 320 && movable_size != 288) {
+		error("Provided movable.sed is not 320 or 288 bytes of size","", true);
+	}
+	keyScrambler((movable + 0x110), false, normalKey);
+	keyScrambler((movable + 0x110), true, normalKey_CMAC);
+	free(movable);
+
+
+	TAD DSi(argv[1]);
+
+	DSi.dumpModifiedTad(0x0004013800000102);
+	DSi.dumpModifiedTad(0x0004013820000102);
+	DSi.dumpModifiedTad(0x0004800f484e4841);
+	DSi.dumpModifiedTad(0x0004800f484e4C41);
 	printf("\nJob completed\n");
-	
 	return 0;
 }
