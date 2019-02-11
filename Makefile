@@ -49,7 +49,7 @@ export OBJCOPY	:=	$(PREFIX)objcopy
 # INCLUDES is a list of directories containing extra header files
 # MAXMOD_SOUNDBANK contains a directory of music and sound effect files
 #---------------------------------------------------------------------------------
-TARGET		:=	TadPole
+TARGET		:=	TWLFixGenerator
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data  
