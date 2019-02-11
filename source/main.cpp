@@ -26,8 +26,9 @@ void error(const char *errormsg, const char *filename, bool fatal);
 u8 normalKey[0x10]={0};
 u8 normalKey_CMAC[0x10]={0};
 
-u8 *ctcert;
-
+//u8 *ctcert;
+extern u8 ctcert[];
+extern int ctcert_size;
 
 class TAD {
 
@@ -275,9 +276,9 @@ int main(int argc, char* argv[]) {
 	printf("# TWLFix Mod        #\n");
 	printf("#        v2.0       #\n");
 	printf("#####################\n\n");
-	u32 ctcert_size=0;
+	//u32 ctcert_size=0;
 	//printf("Reading ctcert.bin\n");
-	ctcert = readAllBytes("ctcert.bin", ctcert_size);
+	/*ctcert = readAllBytes("ctcert.bin", ctcert_size);*/
 	if (ctcert_size != 414 ) {
 		error("ctcert.bin size invalid.","",true);
 	}
@@ -307,7 +308,7 @@ int main(int argc, char* argv[]) {
 	}
 	printf("\nJob completed\n");
 	//printf("Cleaning up\n");
-	free(ctcert);
+	//free(ctcert);
 	//printf("Program complete\n\n");
 	printf("Press Enter to exit...");
 	std::cin.ignore();
