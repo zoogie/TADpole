@@ -37,12 +37,22 @@ class TAD {
 	u8 *contents[CONTENT_MAX];
 	u8 footer[SIZE_FOOTER];
 	u32 dsiware_size;
+	~TAD() {
+		for(int i=0;i<11;i++){
+				free(contents[i]);
+		}
+		free(banner);
+		free(header);
+		free(footer);
+	}
 	TAD(char *filename) {
 		u8 *dsiware;
 		u32 content_size[11]={0};
 		u32 content_off=OFFSET_TMD;
 		u32 checked_size=0;
 		memset(header,0,SIZE_HEADER);
+		memset(banner,0,SIZE_BANNER);
+		memset(footer,0,SIZE_FOOTER);
 		printf("Reading %s\n", filename);
 
 		dsiware = readAllBytes(filename, dsiware_size);
@@ -78,7 +88,7 @@ class TAD {
 		
 		for(int i=0;i<11;i++){
 			if(content_size[i]){
-				contents[i]=(u8*)malloc(content_size[i]);
+				contents[i]=(u8*)calloc(1,content_size[i]);
 				getSection((dsiware + content_off), content_size[i], normalKey, contents[i]);
 				content_off+=0x20;
 			}
@@ -117,7 +127,7 @@ class TAD {
 		
 		printf("Copying all sections to output buffer\n");
 		
-		dsiware=(u8*)malloc(dsiware_size);
+		dsiware=(u8*)calloc(1,dsiware_size);
 
 		printf("Writing banner\n"); placeSection((dsiware + OFFSET_BANNER), banner, SIZE_BANNER, normalKey, normalKey_CMAC);
 		printf("Writing header\n"); placeSection((dsiware + OFFSET_HEADER), header, SIZE_HEADER, normalKey, normalKey_CMAC);
@@ -164,7 +174,7 @@ u8 *readAllBytes(const char *filename, u32 &filelen) {
 	
 	if(filelen > 0x4000000) filelen=0x4000000; //keep dsiware buffer reasonable
 
-	u8 *buffer = (u8*)malloc(filelen);
+	u8 *buffer = (u8*)calloc(1,filelen);
 
 	fread(buffer, filelen, 1, fileptr);
 	fclose(fileptr);
@@ -240,25 +250,11 @@ int ishex(char *in, u32 size){
 }
 
 int main(int argc, char* argv[]) {
-	char dname[64]={0};
-	int len=strlen(argv[1]);
-	
-	if(len<8 || argc!=2){
+
+	if(argc!=2){
 		usage();
 		return 1;
 	}
-	
-	
-	memcpy(dname, argv[1], 8);
-	//printf("hex check %d %s\n", len,dname);
-	
-	if(ishex(dname,8)){
-		usage();
-		return 1;
-	}
-	
-	//mkdir(dname, 0777);
-	mkdir(dname);
 
 	printf("|TADpole by zoogie|\n");
 	printf("|TWLFix Mod       |\n");
@@ -287,5 +283,7 @@ int main(int argc, char* argv[]) {
 	DSi.dumpModifiedTad(0x0004800f484e4841);
 	DSi.dumpModifiedTad(0x0004800f484e4C41);
 	printf("\nJob completed\n");
+
+	free(ctcert);
 	return 0;
 }
